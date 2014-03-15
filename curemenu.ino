@@ -5,22 +5,28 @@
 #include "CureMenu.h"
 #include "DHT.h"
 
+
 /* 
 
 Pins:
 
-9, 10, 11: RGB terminals of LED
-7: DHT22
-2, 3: buttons
+5, 9, 11: RGB terminals of LED
+6: DHT22
+3, 4: buttons
 A4, A5: I2C LCD
 G/5V - board
 
 */
 
+#define RED_LED 11
+#define GREEN_LED 9
+#define BLUE_LED 5
+#define FRIDGE_RELAY 10
+#define HUMIDIFIER_RELAY 8
 
-DHT dht(7, DHT22);
+DHT dht(6, DHT22);
 LiquidCrystal_I2C lcd(0x20, 16, 2);
-TwoButtonInput tbi(2, 3);
+TwoButtonInput tbi(3, 4);
 CureConfig config = {12, 75, 0, &lcd, &tbi};
 
 #define CC_RUNNING 0
@@ -45,15 +51,24 @@ void request_menu()
 	state = CC_MENU_REQUESTED;
 }
 
+void set_led(uint8_t r, uint8_t g, uint8_t b)
+{
+	analogWrite(RED_LED, r);
+	analogWrite(GREEN_LED, g);
+	analogWrite(BLUE_LED, b);
+}
+
 void setup() {
 	lcd.init();
 	lcd.backlight();
 	Serial.begin(9600);
-	attachInterrupt(0, request_menu, RISING);
-	pinMode(10, OUTPUT);
-	pinMode(11, OUTPUT);
-	analogWrite(10, 0);
-	analogWrite(11, 0);
+	attachInterrupt(1, request_menu, RISING);
+	pinMode(RED_LED, OUTPUT);
+	pinMode(GREEN_LED, OUTPUT);
+	pinMode(BLUE_LED, OUTPUT);
+	pinMode(FRIDGE_RELAY, OUTPUT);
+	pinMode(HUMIDIFIER_RELAY, OUTPUT);
+	set_led(0, 0, 0);
 }
 
 void print_config()
@@ -98,6 +113,12 @@ void set_led()
 	analogWrite(11, fridge_on ? 32 : 0);
 }
 
+void set_relays()
+{
+	digitalWrite(FRIDGE_RELAY, fridge_on ? HIGH : LOW);
+	digitalWrite(HUMIDIFIER_RELAY, humidifier_on ? HIGH : LOW);
+}
+
 void loop() {
 	if(state == CC_RUNNING) {
 		get_state();
@@ -105,10 +126,12 @@ void loop() {
 			print_state();
 			lcd.setCursor(0, 1);
 			print_config();
-			set_led();
+			set_led(0, humidifier_on ? 32 : 0, fridge_on ? 32: 0);
 		}
+		set_relays();
 		delay(300);
 	} else if(state == CC_MENU_REQUESTED) {
+		set_led(128, 128, 0);
 		run_menu(&config);
 		state = CC_RUNNING;
 		redraw = true;

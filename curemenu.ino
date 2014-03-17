@@ -21,8 +21,9 @@ G/5V - board
 #define RED_LED 11
 #define GREEN_LED 9
 #define BLUE_LED 5
-#define FRIDGE_RELAY 10
+#define FAN_RELAY 10
 #define HUMIDIFIER_RELAY 8
+#define FRIDGE_RELAY 8
 
 DHT dht(6, DHT22);
 LiquidCrystal_I2C lcd(0x20, 16, 2);
@@ -36,10 +37,6 @@ CureConfig config = {12, 75, 0, &lcd, &tbi};
 
 // menu request state
 volatile uint8_t state = CC_RUNNING;
-
-// fridge + humidifier states
-bool fridge_on = 0;
-bool humidifier_on = 0;
 
 // current temps
 float humidity = 0.0;
@@ -66,7 +63,7 @@ void setup() {
 	pinMode(RED_LED, OUTPUT);
 	pinMode(GREEN_LED, OUTPUT);
 	pinMode(BLUE_LED, OUTPUT);
-	pinMode(FRIDGE_RELAY, OUTPUT);
+	pinMode(FAN_RELAY, OUTPUT);
 	pinMode(HUMIDIFIER_RELAY, OUTPUT);
 	set_led(0, 0, 0);
 }
@@ -89,8 +86,8 @@ void print_state()
 	char buffer[17];
 	sprintf(buffer, "%d.%dC %d.%d%% F%sH%s", 
 		inttemp, tempd, inthumidity, humidityd,
-		fridge_on ? "y" : "n",
-		humidifier_on ? "y" : "n");
+		config.fan_on ? "y" : "n",
+		config.humidifier_on ? "y" : "n");
 	lcd.clear();
 	lcd.print(buffer);
 }
@@ -103,20 +100,21 @@ void get_state() {
 	temperature = t;
 	humidity = h;
 
-	fridge_on = (temperature > config.temperature && config.mode == CC_MODE_ACTIVE) ? true : false;
-	humidifier_on = (humidity < config.humidity && config.mode == CC_MODE_ACTIVE) ? true : false;
+	config.fan_on = (temperature > config.temperature && config.mode == CC_MODE_ACTIVE) ? true : false;
+	config.humidifier_on = (humidity < config.humidity && config.mode == CC_MODE_ACTIVE) ? true : false;
 }
 
 void set_led() 
 {
-	analogWrite(10, humidifier_on ? 32 : 0);
-	analogWrite(11, fridge_on ? 32 : 0);
+	analogWrite(10, config.humidifier_on ? 32 : 0);
+	analogWrite(11, config.fan_on ? 32 : 0);
 }
 
 void set_relays()
 {
-	digitalWrite(FRIDGE_RELAY, fridge_on ? HIGH : LOW);
-	digitalWrite(HUMIDIFIER_RELAY, humidifier_on ? HIGH : LOW);
+	digitalWrite(FRIDGE_RELAY, config.fan_on ? HIGH : LOW);
+	digitalWrite(FAN_RELAY, config.fan_on ? HIGH : LOW);
+	digitalWrite(HUMIDIFIER_RELAY, config.humidifier_on ? HIGH : LOW);
 }
 
 void loop() {
@@ -126,7 +124,7 @@ void loop() {
 			print_state();
 			lcd.setCursor(0, 1);
 			print_config();
-			set_led(0, humidifier_on ? 32 : 0, fridge_on ? 32: 0);
+			set_led(0, config.humidifier_on ? 32 : 0, config.fan_on ? 32: 0);
 		}
 		set_relays();
 		delay(300);

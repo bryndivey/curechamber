@@ -8,6 +8,11 @@
 typedef struct {
   uint8_t temperature;
   uint8_t humidity;
+  
+  bool fan_on;
+  bool fridge_on;
+  bool humidifier_on;
+  
   bool mode;
   LiquidCrystal_I2C *lcd;
   TwoButtonInput *tbi;

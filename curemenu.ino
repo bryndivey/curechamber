@@ -28,7 +28,7 @@ G/5V - board
 DHT dht(6, DHT22);
 LiquidCrystal_I2C lcd(0x20, 16, 2);
 TwoButtonInput tbi(3, 4);
-CureConfig config = {12, 75, 0, &lcd, &tbi};
+CureConfig config = {12, 75, 0, 0, 0, 0, &lcd, &tbi};
 
 #define CC_RUNNING 0
 #define CC_MENU_REQUESTED 1
@@ -100,8 +100,11 @@ void get_state() {
 	temperature = t;
 	humidity = h;
 
-	config.fan_on = (temperature > config.temperature && config.mode == CC_MODE_ACTIVE) ? true : false;
-	config.humidifier_on = (humidity < config.humidity && config.mode == CC_MODE_ACTIVE) ? true : false;
+	if(config.mode == CC_MODE_ACTIVE) {
+		// only change settings if we're in active mode
+		config.fan_on = (temperature > config.temperature && config.mode == CC_MODE_ACTIVE) ? true : false;
+		config.humidifier_on = (humidity < config.humidity && config.mode == CC_MODE_ACTIVE) ? true : false;
+	}
 }
 
 void set_led() 

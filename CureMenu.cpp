@@ -15,20 +15,18 @@ prog_char s2[] PROGMEM = "Mode";
 prog_char s3[] PROGMEM = "Control";
 prog_char s4[] PROGMEM = "Active";
 prog_char s5[] PROGMEM = "Passive";
-
-#define OPTION_OFFSET_MAIN 0
-#define OPTION_OFFSET_MODE 4
-
-/*
 prog_char s6[] PROGMEM = "Fridge";
 prog_char s7[] PROGMEM = "Fan";
 prog_char s8[] PROGMEM = "Humidifier";
 prog_char s9[] PROGMEM = "Off";
 prog_char s10[] PROGMEM = "On";
 const char *options[] PROGMEM = {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10};
-*/
-#define MAX_OPTION 5
-const char *options[] PROGMEM = {s0, s1, s2, s3, s4, s5};
+
+#define OPTION_OFFSET_MAIN 0
+#define OPTION_OFFSET_MODE 4
+#define OPTION_OFFSET_CONTROL 6
+#define OPTION_OFFSET_ENABLED 9
+#define MAX_OPTION 10
 
 
 void get_string(const char** options, uint8_t index, char *buffer) {
@@ -39,7 +37,6 @@ void get_string(const char** options, uint8_t index, char *buffer) {
   }
 }
 
-/*
 void debug(const char *fmt, ...) {
   char buffer[32];
   va_list args;
@@ -48,7 +45,6 @@ void debug(const char *fmt, ...) {
   va_end(args);
   Serial.println(buffer);
 }
-*/
 
 int generic_selector(CureConfig *config,
 		     uint8_t low,
@@ -60,13 +56,10 @@ int generic_selector(CureConfig *config,
   int i = start;
   int prev = -1;
 
-  Serial.println("Doing");
+  display_callback(config->lcd, i);
   
   for(;;) {
     int r = config->tbi->read();
-    Serial.println("Read");
-    Serial.println(r);
-
     if (r & TBI_BUTTON1 && r & TBI_LONG) {
       return(i);
     } else if (r & TBI_BUTTON2 && r & TBI_LONG) {
@@ -83,11 +76,6 @@ int generic_selector(CureConfig *config,
       i = high;
     }
 
-    Serial.println("NEW I");
-    Serial.println(i);
-    delay(500);
-      
-    
     if(i != prev) {
       display_callback(config->lcd, i);
       prev = i;
@@ -169,7 +157,7 @@ int select_mode(CureConfig *config) {
 void control_displayer(LiquidCrystal_I2C *lcd, int i)
 {
   char buffer[12];
-  get_string(options, i+6, buffer);
+  get_string(options, i+OPTION_OFFSET_CONTROL, buffer);
   lcd->clear();
   lcd->print(buffer);
 }
@@ -177,21 +165,21 @@ void control_displayer(LiquidCrystal_I2C *lcd, int i)
 void enabled_displayer(LiquidCrystal_I2C *lcd, int i)
 {
   char buffer[12];
-  get_string(options, i+9, buffer);
+  get_string(options, i+OPTION_OFFSET_ENABLED, buffer);
   lcd->clear();
   lcd->print(buffer);
 }
 
 int select_control(CureConfig *config) {
-  int temp = generic_selector(config, 0, 1, 0, 1, control_displayer);
+  int temp = generic_selector(config, 0, 2, 0, 1, control_displayer);
   bool *dest;
   if(temp == NO_SELECTION) {
     return(0);
-  } else if(temp == 1) {
+  } else if(temp == 0) {
     dest = &config->fridge_on;
-  } else if(temp == 2) {
+  } else if(temp == 1) {
     dest = &config->fan_on;
-  } else if(temp == 3) {
+  } else if(temp == 2) {
     dest = &config->humidifier_on;
   }
   temp = generic_selector(config, 0, 1, *dest, 1, enabled_displayer);
@@ -204,14 +192,9 @@ int select_control(CureConfig *config) {
 void menu_displayer(LiquidCrystal_I2C *lcd, int i)
 {
   char buffer[12];
-  Serial.println("DISPLAY");
-  Serial.println(i);
   get_string(options, i, buffer);
-  delay(1000);
-  
   lcd->clear();
   lcd->print(buffer);
-  delay(1000);
 }
 
 int run_menu(CureConfig *config)
@@ -224,9 +207,10 @@ int run_menu(CureConfig *config)
     select_humidity(config);
   } else if (temp == OPT_MODE) {
     select_mode(config);
+  } else if (temp == OPT_CONTROL) {
+    select_control(config);
   } else if (temp == NO_SELECTION) {
     return(0);
   }
   run_menu(config);
-  return(1);
 }

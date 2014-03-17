@@ -25,27 +25,53 @@ G/5V - board
 #define HUMIDIFIER_RELAY 8
 #define FRIDGE_RELAY 8
 
-DHT dht(6, DHT22);
-LiquidCrystal_I2C lcd(0x20, 16, 2);
-TwoButtonInput tbi(3, 4);
-CureConfig config = {12, 75, 0, 0, 0, 0, &lcd, &tbi};
-
 #define CC_RUNNING 0
 #define CC_MENU_REQUESTED 1
 #define CC_MODE_ACTIVE 0
 #define CC_MODE_PASSIVE 1
 
-// menu request state
-volatile uint8_t state = CC_RUNNING;
+// icons
+const byte icon_fan[8] = {
+	B00000,
+	B11001,
+	B01011,
+	B00100,
+	B11010,
+	B10011,
+};
 
-// current temps
-float humidity = 0.0;
-float temperature = 0.0;
-bool redraw = true;
+const byte icon_humidifier[8] = {
+
+};
+
+const byte icon_fridge[8] = {
+	B00000,
+	B01110,
+	B01010,
+	B01110,
+	B01010,
+	B01010,
+	B01110,
+    B00000,	
+};
+
+typedef struct {
+	float temperature;
+	float humidity;
+	bool redraw;
+	bool fan_on;
+	bool fridge_on;
+	bool humidifier_on;
+} CureState;
+
+// global volative for interrupt-driven menu trigger
+// let's keep this as the only global
+volatile uint8_t loop_state = CC_RUNNING; 
 
 void request_menu()
 {
-	state = CC_MENU_REQUESTED;
+	// have to use volatile global
+	loop_state = CC_MENU_REQUESTED;
 }
 
 void set_led(uint8_t r, uint8_t g, uint8_t b)
@@ -55,9 +81,86 @@ void set_led(uint8_t r, uint8_t g, uint8_t b)
 	analogWrite(BLUE_LED, b);
 }
 
-void setup() {
-	lcd.init();
-	lcd.backlight();
+
+void get_state(CureConfig config, CureState &state) {
+	float t = config.dht->readTemperature();
+	float h = config.dht->readHumidity();
+	state.redraw = (t != state.temperature || h != state.humidity) ? true : false;
+
+	state.temperature = t;
+	state.humidity = h;
+}
+
+void compute_activity(CureConfig config, CureState &state)
+{
+	state.fan_on = config.fan_on;
+
+	if(config.mode == CC_MODE_ACTIVE) {
+		state.fridge_on = (state.temperature > config.temperature) ? true : false;
+		state.humidifier_on = (state.humidity < config.humidity) ? true : false;
+	} else if(config.mode == CC_MODE_PASSIVE) {
+		state.fridge_on = config.fridge_on;
+		state.humidifier_on = config.fan_on;
+	}
+}
+
+void print_float(char *buffer, float f)
+{
+	int int_f = (int)f;
+	int frac_f = ((int)(10 * f) - 10 * int_f);
+	sprintf(buffer, "%d.%d", int_f, frac_f);
+}
+
+void display_config(CureConfig config, CureState state)
+{
+	char buffer[17];
+	sprintf(buffer, "%d.0C %d.0%%", config.temperature, config.humidity);
+	config.lcd->setCursor(0, 0);
+	config.lcd->print(buffer);
+}
+
+void display_readings(CureConfig config, CureState state)
+{
+	char temp[4];
+	char humidity[4];
+	print_float(temp, state.temperature);
+	print_float(humidity, state.humidity);
+
+	char buffer[17];
+	sprintf(buffer, "%sC %s%%", temp, humidity);
+	config.lcd->setCursor(0, 1);
+	config.lcd->print(buffer);
+}
+
+void display_actives(CureConfig config, CureState state)
+{
+	config.lcd->setCursor(14, 0);
+	if(state.humidifier_on) {
+
+	}
+	config.lcd->setCursor(15, 0);
+	config.lcd->setCursor(14, 1);
+	config.lcd->setCursor(15, 1);
+}
+
+void update_display(CureConfig config, CureState state)
+{
+	if(state.redraw) {
+		display_readings(config, state);
+		display_config(config, state);
+		display_actives(config, state);
+	}
+}
+
+void set_relays(CureState state)
+{
+	digitalWrite(FRIDGE_RELAY, state.fridge_on ? HIGH : LOW);
+	digitalWrite(FAN_RELAY, state.fan_on ? HIGH : LOW);
+	digitalWrite(HUMIDIFIER_RELAY, state.humidifier_on ? HIGH : LOW);
+}
+
+void init(CureConfig config)
+{
 	Serial.begin(9600);
 	attachInterrupt(1, request_menu, RISING);
 	pinMode(RED_LED, OUTPUT);
@@ -66,76 +169,43 @@ void setup() {
 	pinMode(FAN_RELAY, OUTPUT);
 	pinMode(HUMIDIFIER_RELAY, OUTPUT);
 	set_led(0, 0, 0);
+
+	config.lcd->init();
+	config.lcd->clear();
 }
 
-void print_config()
-{
-	char buffer[16];
-	sprintf(buffer, "%d.0C %d.0%% %s", config.temperature, config.humidity, config.mode == 0 ? "A" : "P");
-	lcd.print(buffer);
-}
-
-void print_state()
-{
-	int inttemp = (int)temperature;
-	int inthumidity = (int)humidity;
-
-	int tempd = ((int)(10 * temperature)) - 10 * inttemp;
-	int humidityd = ((int)(10 * humidity)) - 10 * inthumidity;
-
-	char buffer[17];
-	sprintf(buffer, "%d.%dC %d.%d%% F%sH%s", 
-		inttemp, tempd, inthumidity, humidityd,
-		config.fan_on ? "y" : "n",
-		config.humidifier_on ? "y" : "n");
-	lcd.clear();
-	lcd.print(buffer);
-}
-
-void get_state() {
-	float t = dht.readTemperature();
-	float h = dht.readHumidity();
-	redraw = (t != temperature || h != humidity) ? true : false;
-
-	temperature = t;
-	humidity = h;
-
-	if(config.mode == CC_MODE_ACTIVE) {
-		// only change settings if we're in active mode
-		config.fan_on = (temperature > config.temperature && config.mode == CC_MODE_ACTIVE) ? true : false;
-		config.humidifier_on = (humidity < config.humidity && config.mode == CC_MODE_ACTIVE) ? true : false;
-	}
-}
-
-void set_led() 
-{
-	analogWrite(10, config.humidifier_on ? 32 : 0);
-	analogWrite(11, config.fan_on ? 32 : 0);
-}
-
-void set_relays()
-{
-	digitalWrite(FRIDGE_RELAY, config.fan_on ? HIGH : LOW);
-	digitalWrite(FAN_RELAY, config.fan_on ? HIGH : LOW);
-	digitalWrite(HUMIDIFIER_RELAY, config.humidifier_on ? HIGH : LOW);
-}
+void setup() {}
 
 void loop() {
-	if(state == CC_RUNNING) {
-		get_state();
-		if(redraw) {
-			print_state();
-			lcd.setCursor(0, 1);
-			print_config();
-			set_led(0, config.humidifier_on ? 32 : 0, config.fan_on ? 32: 0);
-		}
-		set_relays();
+	// initialization
+	DHT dht(6, DHT22);
+	LiquidCrystal_I2C lcd(0x20, 16, 2);
+	TwoButtonInput tbi(3, 4);
+
+	CureConfig config = {12, 75, 0, 0, 0, 0, &dht, &lcd, &tbi};
+	CureState state = {0.0, 0.0, true};
+
+	init(config);
+
+	if(loop_state == CC_RUNNING) {
+		get_state(config, state);
+
+		// in active, figure out whether we need to turn stuff on
+		// in passive, just use the config values
+		compute_activity(config, state);
+
+		// update display (only if redraw is set)
+		update_display(config, state);
+		set_led(0, config.humidifier_on ? 32 : 0, config.fan_on ? 32: 0);
+
+		// turn the things! twiddle the knobs!
+		set_relays(state);
 		delay(300);
-	} else if(state == CC_MENU_REQUESTED) {
+	} else if(loop_state == CC_MENU_REQUESTED) {
 		set_led(128, 128, 0);
 		run_menu(&config);
-		state = CC_RUNNING;
-		redraw = true;
+		loop_state = CC_RUNNING;
+		state.redraw = true;
 	}
 
 }

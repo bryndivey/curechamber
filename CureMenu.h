@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 #include <LiquidCrystal_I2C.h>
+#include <DHT.h>
 #include "TwoButtonInput.h"
 
 typedef struct {
@@ -14,13 +15,17 @@ typedef struct {
   bool humidifier_on;
   
   bool mode;
+  DHT *dht;
   LiquidCrystal_I2C *lcd;
   TwoButtonInput *tbi;
 } CureConfig;
 
 int run_menu(CureConfig* config);
-int select_number(CureConfig* config);
-int select_temperature(CureConfig* config);
-int select_humidity(CureConfig* config);
+
+/*
+  int select_number(CureConfig* config);
+  int select_temperature(CureConfig* config);
+  int select_humidity(CureConfig* config);
+*/
 
 #endif

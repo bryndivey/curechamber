@@ -212,7 +212,9 @@ void loop() {
 			delay(300);
 		} else if(loop_state == CC_MENU_REQUESTED) {
 			set_led(128, 128, 0);
+			Serial.println("Running menu");
 			run_menu(&config);
+			Serial.println("Finished running menu");
 			loop_state = CC_RUNNING;
 			state.redraw = true;
 		}

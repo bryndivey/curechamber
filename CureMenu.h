@@ -15,17 +15,13 @@ typedef struct {
   bool humidifier_on;
   
   bool mode;
+
   DHT *dht;
   LiquidCrystal_I2C *lcd;
   TwoButtonInput *tbi;
 } CureConfig;
 
-int run_menu(CureConfig* config);
 
-/*
-  int select_number(CureConfig* config);
-  int select_temperature(CureConfig* config);
-  int select_humidity(CureConfig* config);
-*/
+int run_menu(CureConfig *config);
 
 #endif

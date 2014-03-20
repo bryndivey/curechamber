@@ -199,7 +199,6 @@ void menu_displayer(LiquidCrystal_I2C *lcd, int i)
 
 int run_menu(CureConfig *config)
 {
-  Serial.println("HERE");
   int temp = generic_selector(config, 0, 3, 0, 1, menu_displayer);
   if(temp == OPT_TEMPERATURE) {
     select_temperature(config);

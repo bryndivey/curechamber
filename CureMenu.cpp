@@ -9,27 +9,28 @@
 #define OPT_MODE 2
 #define OPT_CONTROL 3
 
-prog_char s0[] PROGMEM = "Temperature";
-prog_char s1[] PROGMEM = "Humidity";
-prog_char s2[] PROGMEM = "Mode";
-prog_char s3[] PROGMEM = "Control";
-prog_char s4[] PROGMEM = "Active";
-prog_char s5[] PROGMEM = "Passive";
-prog_char s6[] PROGMEM = "Fridge";
-prog_char s7[] PROGMEM = "Fan";
-prog_char s8[] PROGMEM = "Humidifier";
-prog_char s9[] PROGMEM = "Off";
-prog_char s10[] PROGMEM = "On";
-const char *options[] PROGMEM = {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10};
+const char s0[] PROGMEM = "Temperature";
+const char s1[] PROGMEM = "Humidity";
+const char s2[] PROGMEM = "Mode";
+const char s3[] PROGMEM = "Control";
+const char s4[] PROGMEM = "Active";
+const char s5[] PROGMEM = "Passive";
+const char s6[] PROGMEM = "Fridge";
+const char s7[] PROGMEM = "Fan";
+const char s8[] PROGMEM = "Humidifier";
+const char s9[] PROGMEM = "Light";
+const char s10[] PROGMEM = "Off";
+const char s11[] PROGMEM = "On";
+PGM_P const options[] PROGMEM = {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11};
 
 #define OPTION_OFFSET_MAIN 0
 #define OPTION_OFFSET_MODE 4
 #define OPTION_OFFSET_CONTROL 6
-#define OPTION_OFFSET_ENABLED 9
-#define MAX_OPTION 10
+#define OPTION_OFFSET_ENABLED 10
+#define MAX_OPTION 11
 
 
-void get_string(const char** options, uint8_t index, char *buffer) {
+void get_string(const char* const* options, uint8_t index, char *buffer) {
   if(index > MAX_OPTION) {
     strcpy(buffer, "error");
   } else {
@@ -107,7 +108,7 @@ void temperature_displayer(LiquidCrystal_I2C *lcd, int i)
 int select_temperature(CureConfig *config) {
   int temp = generic_selector(config,
 			      10,
-			      25,
+			      30,
 			      config->temperature,
 			      1,
 			      temperature_displayer);
@@ -171,7 +172,7 @@ void enabled_displayer(LiquidCrystal_I2C *lcd, int i)
 }
 
 int select_control(CureConfig *config) {
-  int temp = generic_selector(config, 0, 2, 0, 1, control_displayer);
+  int temp = generic_selector(config, 0, 3, 0, 1, control_displayer);
   bool *dest;
   if(temp == NO_SELECTION) {
     return(0);
@@ -181,6 +182,8 @@ int select_control(CureConfig *config) {
     dest = &config->fan_on;
   } else if(temp == 2) {
     dest = &config->humidifier_on;
+  } else if(temp == 3) {
+    dest = &config->light_on;
   }
   temp = generic_selector(config, 0, 1, *dest, 1, enabled_displayer);
   if(temp != *dest) {

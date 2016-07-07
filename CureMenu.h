@@ -10,9 +10,10 @@ typedef struct {
   uint8_t temperature;
   uint8_t humidity;
   
-  bool fan_on;
   bool fridge_on;
   bool humidifier_on;
+  bool light_on;
+  bool fan_on;
   
   bool mode;
 
@@ -23,5 +24,6 @@ typedef struct {
 
 
 int run_menu(CureConfig *config);
+void debug(const char *fmt, ...);
 
 #endif

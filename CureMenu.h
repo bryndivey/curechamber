@@ -4,6 +4,5 @@
 #include "CureChamber.h"
 
 int run_menu(CureConfig *config);
-void debug(const char *fmt, ...);
 
 #endif

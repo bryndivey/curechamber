@@ -149,94 +149,92 @@ void update_display(CureConfig config, CureState state)
 
 void set_relays(CureState state)
 {
-  debug("Fridge %d Humid %d Light %d", state.fridge_on,
-	state.humidifier_on,
-	state.light_on);
-	digitalWrite(FRIDGE_RELAY, state.fridge_on ? HIGH : LOW);
-	digitalWrite(HUMIDIFIER_RELAY, state.humidifier_on ? HIGH : LOW);
-	digitalWrite(LIGHT_RELAY, state.light_on ? HIGH : LOW);
+    digitalWrite(FRIDGE_RELAY, state.fridge_on ? HIGH : LOW);
+    digitalWrite(HUMIDIFIER_RELAY, state.humidifier_on ? HIGH : LOW);
+    digitalWrite(LIGHT_RELAY, state.light_on ? HIGH : LOW);
 }
 
-void init(CureConfig config)
+void init(CureConfig *config)
 {
-	Serial.begin(9600);
-	Serial.println("Initialization beginning");
+    Serial.begin(9600);
+    Serial.println("Initialization beginning");
 
-	attachInterrupt(digitalPinToInterrupt(BUTTON_ONE), request_menu, RISING);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_ONE), request_menu, RISING);
 
-	// pin modes
-	//pinMode(RED_LED, OUTPUT);
-	//pinMode(GREEN_LED, OUTPUT);
-	//pinMode(BLUE_LED, OUTPUT);
+    // pin modes
+    pinMode(RED_LED, OUTPUT);
+    pinMode(GREEN_LED, OUTPUT);
+    pinMode(BLUE_LED, OUTPUT);
 
-	pinMode(FRIDGE_RELAY, OUTPUT);
-	pinMode(HUMIDIFIER_RELAY, OUTPUT);
-	pinMode(LIGHT_RELAY, OUTPUT);
+    pinMode(FRIDGE_RELAY, OUTPUT);
+    pinMode(HUMIDIFIER_RELAY, OUTPUT);
+    pinMode(LIGHT_RELAY, OUTPUT);
 	
-	// setup LED 
-	// set_led(0, 0, 0);
+    // setup LED 
+    // set_led(0, 0, 0);
 
-	// initialize LCD
-	config.lcd->init();
+    // initialize LCD
+    config->lcd->init();
 
-	config.lcd->createChar(ICON_FRIDGE, icon_fridge);
-	config.lcd->createChar(ICON_HUMIDIFIER, icon_humidifier);
-	config.lcd->createChar(ICON_LIGHT, icon_light);
-	config.lcd->createChar(ICON_ACTIVE, icon_active);
-	config.lcd->createChar(ICON_PASSIVE, icon_passive);
+    config->lcd->createChar(ICON_FRIDGE, icon_fridge);
+    config->lcd->createChar(ICON_HUMIDIFIER, icon_humidifier);
+    config->lcd->createChar(ICON_LIGHT, icon_light);
+    config->lcd->createChar(ICON_ACTIVE, icon_active);
+    config->lcd->createChar(ICON_PASSIVE, icon_passive);
 
-	config.lcd->backlight();
-	config.lcd->clear();
-	config.lcd->home();
-	config.lcd->println("Starting");
+    config->lcd->backlight();
+    config->lcd->clear();
+    config->lcd->home();
+    config->lcd->println("Starting");
 
-	Serial.println("Initialization complete");
+    if(load_settings(config) == 0) {
+	debug("Loaded config: %dC %d%%", config->temperature, config->humidity);
+    } else {
+	debug("Default config: %dC %d%%", config->temperature, config->humidity);
+    }
+    save_settings(config);
+    Serial.println("Initialization complete");
 }
 
 void setup() {}
 
 void loop() {
-	// initialization
-	DHT dht(SENSOR, DHT22);
-	LiquidCrystal_I2C lcd(0x20, 16, 2);
-	TwoButtonInput tbi(BUTTON_ONE, BUTTON_TWO);
+    // initialization
+    DHT dht(SENSOR, DHT22);
+    LiquidCrystal_I2C lcd(0x20, 16, 2);
+    TwoButtonInput tbi(BUTTON_ONE, BUTTON_TWO);
 
-	CureConfig config = {27, 85, 1, 1, 1, 1, 0, &dht, &lcd, &tbi};
-	if(load_settings(&config)) {
-	    debug("Loaded settings: %d %d", config.temperature, config.humidity);
-	} else {
-	    debug("Default settings: %d %d", config.temperature, config.humidity);
+    CureConfig config = {27, 85, 1, 1, 1, 1, 0, &dht, &lcd, &tbi};
+    CureState state = {0.0, 0.0, true};
+
+    init(&config);
+
+    for(;;) {
+	if(loop_state == CC_RUNNING) {
+	    get_state(config, state);
+
+	    // in active, figure out whether we need to turn stuff on
+	    // in passive, just use the config values
+	    compute_activity(config, state);
+
+	    // update display (only if redraw is set)
+	    update_display(config, state);
+	    // set_led(0, config.humidifier_on ? 32 : 0, 0);
+
+	    // turn the things! twiddle the knobs!
+	    set_relays(state);
+	    delay(300);
+	} else if(loop_state == CC_MENU_REQUESTED) {
+	    // set_led(128, 128, 0);
+	    Serial.println("Running menu");
+	    run_menu(&config);
+	    save_settings(&config);
+	    debug("Saved config: %dC %d%%", config.temperature, config.humidity);
+	    Serial.println("Finished running menu");
+	    loop_state = CC_RUNNING;
+	    state.redraw = 1;
 	}
-	    
-	CureState state = {0.0, 0.0, true};
-
-	init(config);
-
-	for(;;) {
-		Serial.println("Looping");
-		if(loop_state == CC_RUNNING) {
-			get_state(config, state);
-
-			// in active, figure out whether we need to turn stuff on
-			// in passive, just use the config values
-			compute_activity(config, state);
-
-			// update display (only if redraw is set)
-			update_display(config, state);
-			// set_led(0, config.humidifier_on ? 32 : 0, 0);
-
-			// turn the things! twiddle the knobs!
-			set_relays(state);
-			delay(300);
-		} else if(loop_state == CC_MENU_REQUESTED) {
-		    // set_led(128, 128, 0);
-			Serial.println("Running menu");
-			run_menu(&config);
-			Serial.println("Finished running menu");
-			loop_state = CC_RUNNING;
-			state.redraw = 1;
-		}
-	}
+    }
 
 }
 

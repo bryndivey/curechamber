@@ -9,12 +9,14 @@
 #define FAN_MASK 3
 #define MODE_MASK 4
 
+
+
 void update(int loc, uint8_t val) {
     loc = loc + CC_PERSISTENCE_OFFSET;
     if(loc >= EEPROM.length()) {
 	// what now?
     }
-    EEPROM.update(loc, val);
+    EEPROM.write(loc, val);
 }
 
 uint8_t read(int loc) {
@@ -35,12 +37,16 @@ void save_settings(CureConfig *config) {
     update(1, config->temperature);
     update(2, config->humidity);
     update(3, get_mask(config));
+
+    debug("Saved magic as %d and temp as %d", EEPROM.read(0), EEPROM.read(1));
 }
 
 int load_settings(CureConfig *config) {
     // don't want random data here
-    if(read(0) != MAGIC)
+    if(read(0) != MAGIC) {
+	debug("Can't find magic marker");
 	return 1;
+    }
     
     config->temperature = read(1);
     config->humidity = read(2);
@@ -50,6 +56,7 @@ int load_settings(CureConfig *config) {
     config->light_on = mask & LIGHT_MASK;
     config->fan_on = mask & FAN_MASK;
     config->mode = mask & MODE_MASK;
+    debug("Loaded to %dC %d%%", config->temperature, config->humidity);
     
     return 0;
 }

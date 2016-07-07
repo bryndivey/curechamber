@@ -6,6 +6,8 @@
 #include <DHT.h>
 #include "TwoButtonInput.h"
 
+void debug(const char *fmt, ...);
+
 /*
  * Application configuration
  */

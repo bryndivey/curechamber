@@ -6,6 +6,7 @@
 #include "DHT.h"
 #include "icons.h"
 #include "CureChamber.h"
+#include "persistence.h"
 
 
 /* 
@@ -201,6 +202,12 @@ void loop() {
 	TwoButtonInput tbi(BUTTON_ONE, BUTTON_TWO);
 
 	CureConfig config = {27, 85, 1, 1, 1, 1, 0, &dht, &lcd, &tbi};
+	if(load_settings(&config)) {
+	    debug("Loaded settings: %d %d", config.temperature, config.humidity);
+	} else {
+	    debug("Default settings: %d %d", config.temperature, config.humidity);
+	}
+	    
 	CureState state = {0.0, 0.0, true};
 
 	init(config);

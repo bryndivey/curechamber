@@ -1,27 +1,7 @@
 #ifndef CureMenu_h
 #define CureMenu_h
 
-#include <inttypes.h>
-#include <LiquidCrystal_I2C.h>
-#include <DHT.h>
-#include "TwoButtonInput.h"
-
-typedef struct {
-  uint8_t temperature;
-  uint8_t humidity;
-  
-  bool fridge_on;
-  bool humidifier_on;
-  bool light_on;
-  bool fan_on;
-  
-  bool mode;
-
-  DHT *dht;
-  LiquidCrystal_I2C *lcd;
-  TwoButtonInput *tbi;
-} CureConfig;
-
+#include "CureChamber.h"
 
 int run_menu(CureConfig *config);
 void debug(const char *fmt, ...);
